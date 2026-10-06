@@ -1,0 +1,1693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AERION-X Flight Simulator</title>
+
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;color:#dff8ff;font-family:Arial,sans-serif}
+canvas{display:block}
+
+#ui{
+ position:fixed;
+ inset:0;
+ pointer-events:none;
+}
+
+.panel{
+ position:absolute;
+ background:rgba(3,12,22,.82);
+ border:1px solid #24556b;
+ border-radius:10px;
+ box-shadow:0 0 25px rgba(0,180,255,.12);
+ backdrop-filter:blur(8px);
+}
+
+#title{
+ top:15px;
+ left:15px;
+ padding:12px 16px;
+}
+#title strong{
+ font-size:19px;
+ letter-spacing:4px;
+}
+#title small{
+ display:block;
+ color:#4cdfff;
+ margin-top:5px;
+ font-size:9px;
+ letter-spacing:2px;
+}
+
+#mode{
+ top:15px;
+ right:15px;
+ width:230px;
+ padding:12px;
+ pointer-events:auto;
+}
+
+.mode{
+ width:100%;
+ padding:8px;
+ margin:3px 0;
+ background:#071c2a;
+ color:#aeefff;
+ border:1px solid #21485b;
+ border-radius:5px;
+ cursor:pointer;
+}
+.mode.active{
+ background:#07516b;
+ border-color:#4ce6ff;
+}
+
+#telemetry{
+ left:15px;
+ bottom:15px;
+ width:275px;
+ padding:13px;
+}
+
+.row{
+ display:flex;
+ justify-content:space-between;
+ padding:5px 0;
+ border-bottom:1px solid rgba(255,255,255,.05);
+ font-size:10px;
+}
+.row span:first-child{color:#718994}
+.row span:last-child{
+ color:#5ee5ff;
+ font-family:monospace;
+}
+
+#controls{
+ right:15px;
+ bottom:15px;
+ width:260px;
+ padding:13px;
+ pointer-events:auto;
+}
+
+label{
+ display:flex;
+ justify-content:space-between;
+ font-size:10px;
+ color:#7896a3;
+ margin:8px 0 4px;
+}
+
+input[type=range]{
+ width:100%;
+ accent-color:#40dcff;
+}
+
+button{
+ background:#071d2d;
+ border:1px solid #22566c;
+ color:#bdefff;
+ padding:8px;
+ border-radius:5px;
+ cursor:pointer;
+}
+button:hover{
+ background:#0a3b50;
+ border-color:#50e6ff;
+}
+
+.buttons{
+ display:flex;
+ gap:5px;
+ margin-top:8px;
+}
+.buttons button{flex:1}
+
+#status{
+ top:78px;
+ left:50%;
+ transform:translateX(-50%);
+ padding:7px 18px;
+ border-radius:30px;
+ color:#64e6ff;
+ font-size:10px;
+ letter-spacing:2px;
+}
+
+#crosshair{
+ position:absolute;
+ left:50%;
+ top:50%;
+ transform:translate(-50%,-50%);
+ width:100px;
+ height:100px;
+ border:1px solid rgba(70,225,255,.35);
+ border-radius:50%;
+}
+
+#crosshair:before,
+#crosshair:after{
+ content:"";
+ position:absolute;
+ background:#63e8ff;
+}
+#crosshair:before{
+ width:60px;
+ height:1px;
+ left:20px;
+ top:49px;
+}
+#crosshair:after{
+ height:60px;
+ width:1px;
+ left:49px;
+ top:20px;
+}
+
+#message{
+ position:absolute;
+ bottom:90px;
+ left:50%;
+ transform:translateX(-50%);
+ color:#9cb4bd;
+ font-size:10px;
+ letter-spacing:1px;
+ white-space:nowrap;
+}
+
+@media(max-width:750px){
+ #telemetry{display:none}
+ #mode{transform:scale(.8);transform-origin:top right}
+ #controls{transform:scale(.8);transform-origin:bottom right}
+}
+</style>
+</head>
+
+<body>
+
+<div id="ui">
+
+<div id="title" class="panel">
+<strong>AERION-X</strong>
+<small>ADVANCED FLIGHT SIMULATOR</small>
+</div>
+
+<div id="status" class="panel">VTOL MANUAL</div>
+
+<div id="mode" class="panel">
+
+<div style="font-size:9px;color:#7895a2;margin-bottom:7px">
+FLIGHT MODE
+</div>
+
+<button class="mode active" data-mode="VTOL">1 · VTOL</button>
+<button class="mode" data-mode="CRUISE">2 · ATMOSPHERIC CRUISE</button>
+<button class="mode" data-mode="ORBIT">3 · ORBITAL SIMULATION</button>
+<button class="mode" data-mode="LAND">4 · LANDING</button>
+
+</div>
+
+<div id="crosshair"></div>
+
+<div id="telemetry" class="panel">
+
+<div style="font-size:9px;color:#7895a2;margin-bottom:7px">
+FLIGHT TELEMETRY
+</div>
+
+<div class="row"><span>ALTITUDE</span><span id="alt">0 m</span></div>
+<div class="row"><span>SPEED</span><span id="speed">0 km/h</span></div>
+<div class="row"><span>VERTICAL SPEED</span><span id="vertical">0 m/s</span></div>
+<div class="row"><span>HEADING</span><span id="heading">000°</span></div>
+<div class="row"><span>PITCH</span><span id="pitch">0°</span></div>
+<div class="row"><span>ROLL</span><span id="roll">0°</span></div>
+<div class="row"><span>THROTTLE</span><span id="throttleRead">0%</span></div>
+<div class="row"><span>FUEL</span><span id="fuel">100%</span></div>
+<div class="row"><span>FLIGHT COMPUTER</span><span id="computer">MANUAL</span></div>
+
+</div>
+
+<div id="controls" class="panel">
+
+<div style="font-size:9px;color:#7895a2">
+PROPULSION
+</div>
+
+<label>
+<span>THROTTLE</span>
+<span id="throttleValue">35%</span>
+</label>
+
+<input id="throttle" type="range" min="0" max="100" value="35">
+
+<label>
+<span>VERTICAL THRUST</span>
+<span id="liftValue">0%</span>
+</label>
+
+<input id="lift" type="range" min="-100" max="100" value="0">
+
+<div class="buttons">
+<button id="auto">AUTOPILOT</button>
+<button id="gear">GEAR</button>
+</div>
+
+<div class="buttons">
+<button id="camera">CAMERA</button>
+<button id="reset">RESET</button>
+</div>
+
+</div>
+
+<div id="message">
+W/S throttle · ↑↓ pitch · A/D roll · Q/E yaw · SPACE/R lift · F descend · C camera
+</div>
+
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+<script>
+
+/* =========================================================
+   AERION-X
+   ACTUAL 3D FLIGHT SIMULATION
+========================================================= */
+
+const scene = new THREE.Scene();
+
+scene.background = new THREE.Color(0x01040a);
+
+
+/* CAMERA */
+
+const camera = new THREE.PerspectiveCamera(
+60,
+innerWidth/innerHeight,
+0.1,
+10000
+);
+
+camera.position.set(12,7,15);
+
+
+/* RENDERER */
+
+const renderer = new THREE.WebGLRenderer({
+antialias:true
+});
+
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+
+document.body.appendChild(renderer.domElement);
+
+
+/* LIGHT */
+
+scene.add(
+new THREE.HemisphereLight(
+0x8ed8ff,
+0x151515,
+1.7
+)
+);
+
+const sun = new THREE.DirectionalLight(
+0xffffff,
+3
+);
+
+sun.position.set(100,150,80);
+scene.add(sun);
+
+
+/* =========================================================
+   STARS
+========================================================= */
+
+const starGeo = new THREE.BufferGeometry();
+
+const count = 10000;
+const positions = new Float32Array(count*3);
+
+for(let i=0;i<count;i++){
+
+ const r = 700 + Math.random()*2500;
+
+ const a = Math.random()*Math.PI*2;
+ const b = Math.acos(2*Math.random()-1);
+
+ positions[i*3] =
+ r*Math.sin(b)*Math.cos(a);
+
+ positions[i*3+1] =
+ r*Math.cos(b);
+
+ positions[i*3+2] =
+ r*Math.sin(b)*Math.sin(a);
+}
+
+starGeo.setAttribute(
+"position",
+new THREE.BufferAttribute(positions,3)
+);
+
+const stars = new THREE.Points(
+starGeo,
+new THREE.PointsMaterial({
+color:0xffffff,
+size:1.5,
+sizeAttenuation:true
+})
+);
+
+scene.add(stars);
+
+
+/* =========================================================
+   EARTH
+========================================================= */
+
+const earth = new THREE.Mesh(
+new THREE.SphereGeometry(70,64,64),
+new THREE.MeshStandardMaterial({
+color:0x176ea1,
+roughness:.9,
+metalness:0
+})
+);
+
+earth.position.set(
+0,
+-70,
+-180
+);
+
+scene.add(earth);
+
+
+/* atmosphere */
+
+const atmosphere = new THREE.Mesh(
+new THREE.SphereGeometry(72,64,64),
+new THREE.MeshBasicMaterial({
+color:0x37bfff,
+transparent:true,
+opacity:.13,
+side:THREE.BackSide
+})
+);
+
+atmosphere.position.copy(earth.position);
+scene.add(atmosphere);
+
+
+/* =========================================================
+   MOON
+========================================================= */
+
+const moon = new THREE.Mesh(
+new THREE.SphereGeometry(8,48,32),
+new THREE.MeshStandardMaterial({
+color:0xaaaaa5,
+roughness:1
+})
+);
+
+moon.position.set(
+100,
+35,
+-160
+);
+
+scene.add(moon);
+
+
+/* =========================================================
+   GROUND
+========================================================= */
+
+const ground = new THREE.Mesh(
+new THREE.PlaneGeometry(
+1000,
+1000
+),
+new THREE.MeshStandardMaterial({
+color:0x182329,
+roughness:1
+})
+);
+
+ground.rotation.x=-Math.PI/2;
+ground.position.y=0;
+
+scene.add(ground);
+
+
+/* landing pad */
+
+const pad = new THREE.Mesh(
+new THREE.CircleGeometry(8,48),
+new THREE.MeshStandardMaterial({
+color:0x1d3641,
+roughness:.7,
+metalness:.3
+})
+);
+
+pad.rotation.x=-Math.PI/2;
+pad.position.y=.03;
+
+scene.add(pad);
+
+for(let r=2;r<=7;r+=2){
+
+ const ring = new THREE.Mesh(
+ new THREE.RingGeometry(
+ r-.03,
+ r+.03,
+ 48
+ ),
+ new THREE.MeshBasicMaterial({
+ color:0x37e3ff
+ })
+ );
+
+ ring.rotation.x=-Math.PI/2;
+ ring.position.y=.05;
+
+ scene.add(ring);
+}
+
+
+/* =========================================================
+   VEHICLE
+========================================================= */
+
+const car = new THREE.Group();
+
+scene.add(car);
+
+
+/* MATERIALS */
+
+const bodyMat =
+new THREE.MeshPhysicalMaterial({
+color:0x26313a,
+metalness:.85,
+roughness:.22,
+clearcoat:1
+});
+
+const metalMat =
+new THREE.MeshPhysicalMaterial({
+color:0xbacbd3,
+metalness:.95,
+roughness:.15
+});
+
+const glassMat =
+new THREE.MeshPhysicalMaterial({
+color:0x087e9e,
+transparent:true,
+opacity:.6,
+roughness:.05,
+metalness:.15,
+clearcoat:1
+});
+
+const darkMat =
+new THREE.MeshStandardMaterial({
+color:0x05080b,
+metalness:.8,
+roughness:.2
+});
+
+
+/* BODY */
+
+const body = new THREE.Mesh(
+new THREE.BoxGeometry(7,1.6,2.8),
+bodyMat
+);
+
+car.add(body);
+
+
+/* NOSE */
+
+const nose = new THREE.Mesh(
+new THREE.SphereGeometry(1.3,32,20),
+metalMat
+);
+
+nose.scale.set(1.8,.6,.85);
+nose.position.x=3.6;
+
+car.add(nose);
+
+
+/* COCKPIT */
+
+const cockpit = new THREE.Mesh(
+new THREE.SphereGeometry(1.25,32,20),
+glassMat
+);
+
+cockpit.scale.set(1.7,.65,.85);
+cockpit.position.set(.8,1,0);
+
+car.add(cockpit);
+
+
+/* =========================================================
+   PILOT
+========================================================= */
+
+const pilot = new THREE.Group();
+
+pilot.position.set(.65,.25,0);
+car.add(pilot);
+
+
+/* body */
+
+const pilotBody = new THREE.Mesh(
+new THREE.CylinderGeometry(
+.35,.45,.8,16
+),
+new THREE.MeshStandardMaterial({
+color:0x27323b,
+roughness:.8
+})
+);
+
+pilotBody.position.y=0;
+pilot.add(pilotBody);
+
+
+/* head */
+
+const head = new THREE.Mesh(
+new THREE.SphereGeometry(.4,24,16),
+new THREE.MeshStandardMaterial({
+color:0xc5c8c5,
+roughness:.7
+})
+);
+
+head.position.y=.62;
+pilot.add(head);
+
+
+/* helmet */
+
+const helmet = new THREE.Mesh(
+new THREE.SphereGeometry(.44,24,16),
+new THREE.MeshStandardMaterial({
+color:0x7f929d,
+metalness:.5,
+roughness:.3
+})
+);
+
+helmet.scale.set(1,1,.9);
+helmet.position.y=.66;
+
+pilot.add(helmet);
+
+
+/* visor */
+
+const visor = new THREE.Mesh(
+new THREE.SphereGeometry(.26,20,12),
+new THREE.MeshPhysicalMaterial({
+color:0x061b27,
+metalness:.7,
+roughness:.08
+})
+);
+
+visor.scale.set(1.2,.65,.3);
+visor.position.set(.05,.68,-.32);
+
+pilot.add(visor);
+
+
+/* =========================================================
+   WINGS
+========================================================= */
+
+for(const side of [-1,1]){
+
+ const wing = new THREE.Mesh(
+ new THREE.BoxGeometry(4.5,.16,1.8),
+ metalMat
+ );
+
+ wing.position.set(
+ -.2,
+ -.05,
+ side*2
+ );
+
+ wing.rotation.y=side*.12;
+
+ car.add(wing);
+}
+
+
+/* =========================================================
+   ROTORS
+========================================================= */
+
+const rotors=[];
+
+function rotor(x,z){
+
+ const group=new THREE.Group();
+
+ group.position.set(x,-1,z);
+
+ const hub=new THREE.Mesh(
+ new THREE.CylinderGeometry(
+ .28,.28,.3,16
+ ),
+ darkMat
+ );
+
+ group.add(hub);
+
+ for(let i=0;i<4;i++){
+
+  const blade=new THREE.Mesh(
+  new THREE.BoxGeometry(
+  1.8,.06,.12
+  ),
+  darkMat
+  );
+
+  blade.rotation.y=i*Math.PI/2;
+  group.add(blade);
+ }
+
+ car.add(group);
+ rotors.push(group);
+}
+
+rotor(2,1.4);
+rotor(2,-1.4);
+rotor(-2,1.4);
+rotor(-2,-1.4);
+
+
+/* =========================================================
+   LANDING GEAR
+========================================================= */
+
+const landingGear = new THREE.Group();
+car.add(landingGear);
+
+for(const x of [-2,2]){
+
+ const leg=new THREE.Mesh(
+ new THREE.CylinderGeometry(
+ .08,.1,1,12
+ ),
+ darkMat
+ );
+
+ leg.position.set(x,-1.3,0);
+
+ landingGear.add(leg);
+
+ const wheel=new THREE.Mesh(
+ new THREE.TorusGeometry(
+ .25,.07,12,20
+ ),
+ darkMat
+ );
+
+ wheel.rotation.y=Math.PI/2;
+ wheel.position.set(x,-1.8,0);
+
+ landingGear.add(wheel);
+}
+
+
+/* =========================================================
+   ENGINE FLAME
+========================================================= */
+
+const flame = new THREE.Mesh(
+new THREE.ConeGeometry(
+.5,.3,24
+),
+new THREE.MeshBasicMaterial({
+color:0xff631d,
+transparent:true,
+opacity:.7
+})
+);
+
+flame.rotation.z=-Math.PI/2;
+flame.position.x=-3.8;
+
+car.add(flame);
+
+
+/* =========================================================
+   PHYSICS STATE
+========================================================= */
+
+/*
+   Position is real 3D position.
+
+   velocity is real 3D velocity.
+
+   acceleration is calculated every frame.
+
+   This is deliberately a simplified simulator,
+   not real aircraft engineering software.
+*/
+
+const state={
+
+ position:new THREE.Vector3(
+ 0,
+ 2,
+ 0
+ ),
+
+ velocity:new THREE.Vector3(),
+
+ acceleration:new THREE.Vector3(),
+
+ pitch:0,
+
+ roll:0,
+
+ yaw:0,
+
+ throttle:.35,
+
+ vertical:.0,
+
+ fuel:100,
+
+ mode:"VTOL",
+
+ gear:true,
+
+ autopilot:false,
+
+ camera:0
+
+};
+
+
+/* =========================================================
+   INPUT
+========================================================= */
+
+const keys={};
+
+window.addEventListener(
+"keydown",
+e=>{
+
+ keys[e.code]=true;
+
+ if(e.code==="Digit1")
+  setMode("VTOL");
+
+ if(e.code==="Digit2")
+  setMode("CRUISE");
+
+ if(e.code==="Digit3")
+  setMode("ORBIT");
+
+ if(e.code==="Digit4")
+  setMode("LAND");
+
+ if(e.code==="KeyC")
+  state.camera++;
+
+ if(e.code==="KeyG")
+  state.gear=!state.gear;
+
+ if(e.code==="KeyP")
+  state.autopilot=!state.autopilot;
+
+ if(e.code==="KeyX")
+  reset();
+
+ if(e.code==="Space")
+  e.preventDefault();
+});
+
+window.addEventListener(
+"keyup",
+e=>{
+ keys[e.code]=false;
+});
+
+
+/* =========================================================
+   MODE
+========================================================= */
+
+function setMode(mode){
+
+ state.mode=mode;
+
+ document.querySelectorAll(".mode")
+ .forEach(b=>{
+  b.classList.toggle(
+   "active",
+   b.dataset.mode===mode
+  );
+ });
+
+ const names={
+  VTOL:"VTOL MANUAL",
+  CRUISE:"ATMOSPHERIC CRUISE",
+  ORBIT:"ORBITAL SIMULATION",
+  LAND:"PRECISION LANDING"
+ };
+
+ document.getElementById(
+ "status"
+ ).textContent=names[mode];
+}
+
+
+/* =========================================================
+   RESET
+========================================================= */
+
+function reset(){
+
+ state.position.set(
+ 0,
+ 2,
+ 0
+ );
+
+ state.velocity.set(
+ 0,
+ 0,
+ 0
+ );
+
+ state.acceleration.set(
+ 0,
+ 0,
+ 0
+ );
+
+ state.pitch=0;
+ state.roll=0;
+ state.yaw=0;
+
+ state.throttle=.35;
+ state.vertical=0;
+ state.fuel=100;
+
+ state.mode="VTOL";
+
+ setMode("VTOL");
+}
+
+
+/* =========================================================
+   PHYSICS
+========================================================= */
+
+function physics(dt){
+
+ /* keyboard throttle */
+
+ if(keys.KeyW)
+  state.throttle+=dt*.45;
+
+ if(keys.KeyS)
+  state.throttle-=dt*.45;
+
+ state.throttle=
+ THREE.MathUtils.clamp(
+  state.throttle,
+  0,
+  1
+ );
+
+
+ /* attitude */
+
+ if(!state.autopilot){
+
+  if(keys.ArrowUp)
+   state.pitch-=dt*.8;
+
+  if(keys.ArrowDown)
+   state.pitch+=dt*.8;
+
+  if(keys.KeyA)
+   state.roll+=dt*.9;
+
+  if(keys.KeyD)
+   state.roll-=dt*.9;
+
+  if(keys.KeyQ)
+   state.yaw-=dt*.7;
+
+  if(keys.KeyE)
+   state.yaw+=dt*.7;
+
+ }
+
+ state.pitch=
+ THREE.MathUtils.clamp(
+  state.pitch,
+  -1,
+  1
+ );
+
+ state.roll=
+ THREE.MathUtils.clamp(
+  state.roll,
+  -1.2,
+  1.2
+ );
+
+
+ /* vertical control */
+
+ state.vertical=0;
+
+ if(keys.Space)
+  state.vertical+=1;
+
+ if(keys.KeyR)
+  state.vertical+=1;
+
+ if(keys.KeyF)
+  state.vertical-=1;
+
+
+ /* acceleration */
+
+ state.acceleration.set(
+  0,
+  -9.81,
+  0
+ );
+
+
+ /* -------------------------------------
+    VEHICLE FORWARD VECTOR
+ ------------------------------------- */
+
+ const forward =
+ new THREE.Vector3(1,0,0);
+
+ forward.applyEuler(
+ new THREE.Euler(
+ state.pitch,
+ state.yaw,
+ state.roll,
+ "XYZ"
+ )
+ );
+
+ const right =
+ new THREE.Vector3(0,0,1);
+
+ right.applyEuler(
+ new THREE.Euler(
+ state.pitch,
+ state.yaw,
+ state.roll,
+ "XYZ"
+ )
+ );
+
+
+ /* -------------------------------------
+    VTOL
+ ------------------------------------- */
+
+ if(state.mode==="VTOL" ||
+    state.mode==="LAND"){
+
+  /*
+     Simplified vertical thrust.
+  */
+
+  const lift =
+   state.throttle*
+   22;
+
+  state.acceleration.y+=lift;
+
+
+  /*
+     directional thrust
+  */
+
+  state.acceleration.add(
+   forward.clone()
+   .multiplyScalar(
+    state.throttle*
+    12
+   )
+  );
+
+
+  /*
+     roll creates lateral movement
+  */
+
+  state.acceleration.add(
+   right.clone()
+   .multiplyScalar(
+    state.roll*
+    7
+   )
+  );
+
+ }
+
+
+ /* -------------------------------------
+    CRUISE
+ ------------------------------------- */
+
+ if(state.mode==="CRUISE"){
+
+  const thrust=
+   state.throttle*
+   18;
+
+  state.acceleration.add(
+   forward.clone()
+   .multiplyScalar(thrust)
+  );
+
+
+  /*
+     aerodynamic lift
+  */
+
+  const lift=
+   Math.max(
+    0,
+    state.velocity.length()*
+    Math.sin(
+     state.pitch
+    )*
+    -1
+   );
+
+  state.acceleration.y+=
+   lift*.5;
+
+
+  /*
+     VTOL assist
+  */
+
+  state.acceleration.y+=
+   state.vertical*12;
+ }
+
+
+ /* -------------------------------------
+    ORBITAL VISUAL SIMULATION
+ ------------------------------------- */
+
+ if(state.mode==="ORBIT"){
+
+  /*
+     Orbital mode uses a much larger
+     forward acceleration.
+
+     This is visualized at simulator
+     scale and is NOT a real rocket model.
+  */
+
+  state.acceleration.add(
+   forward.clone()
+   .multiplyScalar(
+    state.throttle*
+    45
+   )
+  );
+
+  state.acceleration.y+=
+   state.vertical*
+   25;
+ }
+
+
+ /* -------------------------------------
+    DRAG
+ ------------------------------------- */
+
+ const drag =
+  state.velocity.clone()
+  .multiplyScalar(
+   -.035*
+   state.velocity.length()
+  );
+
+ state.acceleration.add(drag);
+
+
+ /* -------------------------------------
+    AUTOPILOT
+ ------------------------------------- */
+
+ if(state.autopilot){
+
+  state.pitch*=.92;
+  state.roll*=.92;
+
+  if(state.mode==="VTOL"){
+   state.throttle=.5;
+
+   if(state.position.y<10)
+    state.vertical=.4;
+  }
+
+  if(state.mode==="LAND"){
+
+   state.throttle=.25;
+
+   if(state.position.y>2)
+    state.vertical=-.3;
+  }
+
+ }
+
+
+ /* -------------------------------------
+    INTEGRATION
+ ------------------------------------- */
+
+ state.velocity.addScaledVector(
+  state.acceleration,
+  dt
+ );
+
+ state.position.addScaledVector(
+  state.velocity,
+  dt
+ );
+
+
+ /* -------------------------------------
+    GROUND
+ ------------------------------------- */
+
+ if(state.position.y<1){
+
+  state.position.y=1;
+
+  if(state.velocity.y<0)
+   state.velocity.y*=-.15;
+
+  state.velocity.x*=.92;
+  state.velocity.z*=.92;
+
+ }
+
+
+ /* fuel */
+
+ state.fuel-=
+ state.throttle*
+ dt*
+ .4;
+
+ state.fuel=
+ Math.max(
+ 0,
+ state.fuel
+ );
+
+}
+
+
+/* =========================================================
+   APPLY VEHICLE
+========================================================= */
+
+function applyVehicle(dt){
+
+ car.position.copy(
+ state.position
+ );
+
+ car.rotation.order="YXZ";
+
+ car.rotation.y=
+ state.yaw;
+
+ car.rotation.x=
+ state.pitch;
+
+ car.rotation.z=
+ state.roll;
+
+
+ /* rotor animation */
+
+ const rotorSpeed=
+ 15+
+ state.throttle*
+ 60;
+
+ rotors.forEach(r=>{
+  r.rotation.y+=
+   rotorSpeed*dt;
+ });
+
+
+ /* flame */
+
+ flame.scale.y=
+ .2+
+ state.throttle*
+ 3;
+
+ flame.material.opacity=
+ .1+
+ state.throttle*
+ .8;
+
+
+ /* gear */
+
+ const target=
+ state.gear?1:.05;
+
+ landingGear.scale.y+=
+ (target-
+ landingGear.scale.y)*
+ .12;
+
+
+ /* pilot movement */
+
+ pilot.rotation.x=
+ state.pitch*.15;
+
+ pilot.rotation.z=
+ -state.roll*.2;
+
+}
+
+
+/* =========================================================
+   CAMERA
+========================================================= */
+
+function cameraUpdate(){
+
+ /* CHASE */
+
+ if(state.camera%3===0){
+
+  const offset=
+   new THREE.Vector3(
+    -14,
+    7,
+    12
+   );
+
+  offset.applyEuler(
+   car.rotation
+  );
+
+  const target=
+   car.position
+   .clone()
+   .add(offset);
+
+  camera.position.lerp(
+   target,
+   .08
+  );
+
+  camera.lookAt(
+   car.position
+  );
+
+ }
+
+
+ /* COCKPIT */
+
+ else if(state.camera%3===1){
+
+  const p=
+   new THREE.Vector3(
+    1.7,
+    1,
+    0
+   );
+
+  p.applyMatrix4(
+   car.matrixWorld
+  );
+
+  camera.position.lerp(
+   p,
+   .15
+  );
+
+  const target=
+   new THREE.Vector3(
+    15,
+    1,
+    0
+   );
+
+  target.applyMatrix4(
+   car.matrixWorld
+  );
+
+  camera.lookAt(target);
+
+ }
+
+
+ /* TOP */
+
+ else{
+
+  const target=
+   car.position
+   .clone()
+   .add(
+    new THREE.Vector3(
+     0,
+     18,
+     0
+    )
+   );
+
+  camera.position.lerp(
+   target,
+   .08
+  );
+
+  camera.lookAt(
+   car.position
+  );
+ }
+
+}
+
+
+/* =========================================================
+   HUD
+========================================================= */
+
+function hud(){
+
+ const altitude=
+  Math.max(
+   0,
+   state.position.y-1
+  );
+
+ document.getElementById(
+ "alt"
+ ).textContent=
+ altitude.toFixed(1)+" m";
+
+
+ document.getElementById(
+ "speed"
+ ).textContent=
+ (
+  state.velocity.length()*
+  3.6
+ ).toFixed(0)+" km/h";
+
+
+ document.getElementById(
+ "vertical"
+ ).textContent=
+ state.velocity.y.toFixed(1)+" m/s";
+
+
+ let heading=
+ state.yaw*
+ 180/
+ Math.PI;
+
+ heading=
+ (heading%360+360)%360;
+
+ document.getElementById(
+ "heading"
+ ).textContent=
+ heading.toFixed(0)
+ .padStart(3,"0")+"°";
+
+
+ document.getElementById(
+ "pitch"
+ ).textContent=
+ (
+ state.pitch*
+ 180/
+ Math.PI
+ ).toFixed(1)+"°";
+
+
+ document.getElementById(
+ "roll"
+ ).textContent=
+ (
+ state.roll*
+ 180/
+ Math.PI
+ ).toFixed(1)+"°";
+
+
+ document.getElementById(
+ "throttleRead"
+ ).textContent=
+ (
+ state.throttle*100
+ ).toFixed(0)+"%";
+
+
+ document.getElementById(
+ "fuel"
+ ).textContent=
+ state.fuel.toFixed(0)+"%";
+
+
+ document.getElementById(
+ "computer"
+ ).textContent=
+ state.autopilot
+ ?"AUTO"
+ :"MANUAL";
+
+
+ document.getElementById(
+ "throttleValue"
+ ).textContent=
+ (
+ state.throttle*100
+ ).toFixed(0)+"%";
+
+
+ document.getElementById(
+ "liftValue"
+ ).textContent=
+ (
+ state.vertical*100
+ ).toFixed(0)+"%";
+
+
+ document.getElementById(
+ "throttle"
+ ).value=
+ state.throttle*100;
+
+
+ document.getElementById(
+ "lift"
+ ).value=
+ state.vertical*100;
+
+}
+
+
+/* =========================================================
+   UI
+========================================================= */
+
+document
+.querySelectorAll(".mode")
+.forEach(button=>{
+
+ button.onclick=()=>{
+  setMode(
+   button.dataset.mode
+  );
+ };
+
+});
+
+
+document.getElementById(
+"throttle"
+).oninput=e=>{
+
+ state.throttle=
+ Number(e.target.value)/100;
+
+};
+
+
+document.getElementById(
+"lift"
+).oninput=e=>{
+
+ state.vertical=
+ Number(e.target.value)/100;
+
+};
+
+
+document.getElementById(
+"auto"
+).onclick=()=>{
+ state.autopilot=
+ !state.autopilot;
+};
+
+
+document.getElementById(
+"gear"
+).onclick=()=>{
+ state.gear=
+ !state.gear;
+};
+
+
+document.getElementById(
+"camera"
+).onclick=()=>{
+ state.camera++;
+};
+
+
+document.getElementById(
+"reset"
+).onclick=reset;
+
+
+/* =========================================================
+   WORLD ANIMATION
+========================================================= */
+
+function world(dt){
+
+ stars.rotation.y+=
+ dt*.0004;
+
+ moon.rotation.y+=
+ dt*.01;
+
+}
+
+
+/* =========================================================
+   LOOP
+========================================================= */
+
+let previous=
+performance.now();
+
+function animate(now){
+
+ requestAnimationFrame(
+  animate
+ );
+
+ const dt=
+ Math.min(
+  .04,
+  (now-previous)/1000
+ );
+
+ previous=now;
+
+ physics(dt);
+
+ applyVehicle(dt);
+
+ cameraUpdate();
+
+ hud();
+
+ world(dt);
+
+ renderer.render(
+  scene,
+  camera
+ );
+
+}
+
+animate(
+performance.now()
+);
+
+
+/* =========================================================
+   RESIZE
+========================================================= */
+
+window.addEventListener(
+"resize",
+()=>{
+
+ camera.aspect=
+ innerWidth/innerHeight;
+
+ camera.updateProjectionMatrix();
+
+ renderer.setSize(
+  innerWidth,
+  innerHeight
+ );
+
+});
+
+
+/* START */
+
+reset();
+
+</script>
+
+</body>
+</html>
